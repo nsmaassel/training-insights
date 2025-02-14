@@ -21,10 +21,12 @@
     * React with Vite (via Nx preset)
     * Module Federation for micro-frontend architecture (if needed)
     * Tailwind CSS for styling
+    * tRPC client for type-safe API communication
 * **Backend:**
     * Node.js (running in Azure Container Apps)
-    * Express.js for API endpoints
+    * tRPC for type-safe API endpoints
     * TypeScript for type safety
+    * Zod for runtime validation
 * **Cloud Infrastructure:**
     * Azure Container Apps for service hosting
     * Azure Blob Storage for file management
@@ -33,7 +35,7 @@
 
 ### Architecture Diagram
 
-[User] --(HTTPS)--> [Azure Container Apps (Frontend - React)] --(API Calls)--> [Azure Container Apps (Backend - Node.js)]
+[User] --(HTTPS)--> [Azure Container Apps (Frontend - React + tRPC Client)] --(tRPC over HTTP)--> [Azure Container Apps (Backend - Node.js + tRPC Server)]
 ^
 | (Data Access)
 |
@@ -63,25 +65,80 @@
 * Follow Azure security best practices
 * Document all major components
 
+### Testing Guidelines
+* **Test Strategy:**
+  - E2E Tests: Use real dependencies and integrations
+    * MongoDB for data persistence
+    * Real API endpoints
+    * Actual file system operations
+    * Minimal test doubles
+  - Integration Tests: Focus on service boundaries
+    * Real database connections
+    * Actual file processing
+    * External service integration points
+  - Unit Tests: Pure logic only
+    * Business rules
+    * Data transformations
+    * Utility functions
+
+* **Test Data Management:**
+  - Use shared test fixtures
+  - Clean up test data after each run
+  - Maintain test data isolation
+  - Use meaningful test data examples
+
+* **Test Environment:**
+  - Local development:
+    * MongoDB instance
+    * Test file fixtures
+    * Environment configuration
+  - CI Pipeline:
+    * Containerized services
+    * Automated setup/teardown
+    * Parallel test execution
+
+* **Testing Best Practices:**
+  - Write tests before implementation (TDD)
+  - Focus on behavior over implementation
+  - Use real dependencies by default
+  - Keep tests simple and focused
+  - Document test scenarios
+  - Include error cases
+  - Test accessibility
+  - Verify performance metrics
+
 ### Development Process
-1. Use feature branches for all changes
-2. Run affected tests before commits
-3. Ensure CI/CD pipeline passes
-4. Review and update documentation
+1. Test-First Development
+   - Write failing E2E test for feature
+   - Implement minimal passing code
+   - Add integration tests for boundaries
+   - Unit test complex logic
+   - Refactor and optimize
+2. Code Review Requirements
+   - All tests must pass
+   - Test coverage requirements met
+   - No unnecessary mocks
+   - Clear test scenarios
+   - Proper test cleanup
+3. Continuous Integration
+   - Automated test runs
+   - Environment setup validation
+   - Performance benchmarks
+   - Code coverage reports
 
 ## IV. Project Phases & Tasks
 
-### Phase 1: Infrastructure Setup ⏳
+### Phase 1: Infrastructure Setup ✅
 - [x] Task 1.1: Create Nx Workspace with React preset
 - [x] Task 1.2: Configure frontend application
-- [ ] Task 1.3: Setup backend API application
-- [ ] Task 1.4: Configure shared libraries
+- [x] Task 1.3: Setup backend API application with tRPC
+- [x] Task 1.4: Configure shared libraries and data models
 
 ### Phase 2: Azure Resources ⏳
 - [ ] Task 2.1: Resource Group creation
 - [ ] Task 2.2: Container Apps Environment
-- [ ] Task 2.3: Blob Storage setup
-- [ ] Task 2.4: Cosmos DB configuration
+- [ ] Task 2.3: Blob Storage setup for FIT files
+- [ ] Task 2.4: Cosmos DB configuration for activity data
 - [ ] Task 2.5: OpenAI resource deployment
 
 ### Phase 3: Core Features ⏳

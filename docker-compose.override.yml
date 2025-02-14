@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  mongodb:
+    command: mongod --replSet rs0
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "rs.status()"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  playwright:
+    build:
+      context: .
+      dockerfile: e2e.Dockerfile
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      - MONGODB_URL=mongodb://mongodb:27017/test
+      - API_URL=http://api:3000
+      - BASE_URL=http://web:4300
+      - CI=true
+    volumes:
+      - ./playwright-report:/app/playwright-report
+      - ./test-results:/app/test-results
+
+  api:
+    environment:
+      - NODE_ENV=test
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

@@ -15,10 +15,14 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@training-insights/test-utils": ["libs/shared/test-utils/src/index.ts"],
+      "@training-insights/data-access": [
+        "libs/shared/data-access/src/index.ts"
+      ],
       "@training-insights/shared/test-utils": [
         "libs/shared/test-utils/src/index.ts"
-      ]
+      ],
+      "@training-insights/test-utils": ["libs/shared/test-utils/src/index.ts"],
+      "@training-insights/trpc": ["libs/shared/trpc/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

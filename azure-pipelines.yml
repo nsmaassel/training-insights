@@ -2,11 +2,11 @@ name: CI
 
 trigger:
   - main
-pr:
-  - main
+  - develop
 
 variables:
   CI: 'true'
+  npm_config_cache: $(Pipeline.Workspace)/.npm
   ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
     NX_BRANCH: $(System.PullRequest.PullRequestNumber)
     TARGET_BRANCH: $[replace(variables['System.PullRequest.TargetBranch'],'refs/heads/','origin/')]
@@ -16,44 +16,102 @@ variables:
     BASE_SHA: $(git rev-parse HEAD~1)
   HEAD_SHA: $(git rev-parse HEAD)
 
-jobs:
-  - job: main
-    pool:
-      vmImage: 'ubuntu-latest'
-    steps:
-      - checkout: self
-        fetchDepth: 0
-      # Set Azure Devops CLI default settings
-      - bash: az devops configure --defaults organization=$(System.TeamFoundationCollectionUri) project=$(System.TeamProject)
-        displayName: 'Set default Azure DevOps organization and project'
-      # Get last successfull commit from Azure Devops CLI
-      - bash: |
-          LAST_SHA=$(az pipelines build list --branch $(Build.SourceBranchName) --definition-ids $(System.DefinitionId) --result succeeded --top 1 --query "[0].triggerInfo.\"ci.sourceSha\"")
-          if [ -z "$LAST_SHA" ]
-          then
-            echo "Last successful commit not found. Using fallback 'HEAD~1': $BASE_SHA"
-          else
-            echo "Last successful commit SHA: $LAST_SHA"
-            echo "##vso[task.setvariable variable=BASE_SHA]$LAST_SHA"
-          fi
-        displayName: 'Get last successful commit SHA'
-        condition: ne(variables['Build.Reason'], 'PullRequest')
-        env:
-          AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
+stages:
+  - stage: Test
+    jobs:
+      - job: UnitTests
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '18.x'
+          - task: Cache@2
+            inputs:
+              key: 'npm | "$(Agent.OS)" | package-lock.json'
+              restoreKeys: |
+                npm | "$(Agent.OS)"
+              path: $(npm_config_cache)
+          - script: npm ci
+          - script: npx nx run-many --target=test --all --parallel
+            displayName: 'Run Unit Tests'
+          - task: PublishTestResults@2
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '**/junit.xml'
+          - task: PublishCodeCoverageResults@1
+            inputs:
+              codeCoverageTool: Cobertura
+              summaryFileLocation: '**/coverage/cobertura-coverage.xml'
 
-      # This enables task distribution via Nx Cloud
-      # Run this command as early as possible, before dependencies are installed
-      # Learn more at https://nx.dev/ci/reference/nx-cloud-cli#npx-nxcloud-startcirun
-      # Uncomment this line to enable task distribution
-      # - script: npx nx-cloud start-ci-run --distribute-on="3 linux-medium-js" --stop-agents-after="e2e-ci"
+      - job: IntegrationTests
+        pool:
+          vmImage: 'ubuntu-latest'
+        services:
+          mongodb: mongodb
+          azurite: mcr.microsoft.com/azure-storage/azurite
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '18.x'
+          - script: npm ci
+          - script: npx nx e2e training-insights-api-e2e
+            env:
+              MONGODB_URL: mongodb://localhost:27017/test
+              STORAGE_CONNECTION_STRING: DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://localhost:10000/devstoreaccount1;
 
-      - script: npm ci --legacy-peer-deps
-      - script: npx playwright install --with-deps
-      - script: git branch --track main origin/main
-        condition: eq(variables['Build.Reason'], 'PullRequest')
+      - job: E2ETests
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '18.x'
+          - script: npm ci
+          - script: docker-compose -f docker-compose.yml -f docker-compose.override.yml up -d
+          - script: npx nx e2e training-insights-e2e --configuration=ci
+            env:
+              CI: 'true'
+          - task: PublishPipelineArtifact@1
+            condition: always()
+            inputs:
+              targetPath: playwright-report
+              artifact: 'playwright-report'
+          - script: docker-compose down
+            condition: always()
 
-      # Prepend any command with "nx-cloud record --" to record its logs to Nx Cloud
-      # - script: npx nx-cloud record -- echo Hello World
-      # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
-      # When you enable task distribution, run the e2e-ci task instead of e2e
-      - script: npx nx affected --base=$(BASE_SHA) --head=$(HEAD_SHA) lint test build e2e
+  - stage: Build
+    dependsOn: Test
+    condition: succeeded()
+    jobs:
+      - job: BuildApps
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '18.x'
+          - script: npm ci
+          - script: npx nx affected --target=build --prod --parallel
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: dist
+              artifact: 'build'
+
+  - stage: Deploy
+    dependsOn: Build
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: DeployToStaging
+        environment: staging
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: current
+                  artifact: 'build'
+                - task: AzureWebApp@1
+                  inputs:
+                    azureSubscription: '$(AZURE_SUBSCRIPTION)'
+                    appName: '$(APP_NAME)'
+                    package: '$(Pipeline.Workspace)/build'
