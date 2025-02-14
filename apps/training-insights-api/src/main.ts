@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import * as trpcExpress from '@trpc/server/adapters/express';
+import { appRouter, createTRPCContext } from '@training-insights/shared/trpc';
 
 const host = process.env.HOST ?? 'localhost';
 const port = process.env.PORT ? Number(process.env.PORT) : 3000;
@@ -13,6 +15,12 @@ app.use(cors());
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
+
+// Mount tRPC router using shared configuration
+app.use('/trpc', trpcExpress.createExpressMiddleware({
+  router: appRouter,
+  createContext: createTRPCContext
+}));
 
 app.get('/', (req, res) => {
   res.send({ message: 'Hello API' });

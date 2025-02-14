@@ -70,12 +70,7 @@ export default defineConfig({
       }
     }
   ],
-  globalSetup: async () => {
-    // Ensure API is available before running tests
-    if (!await waitForAPI(apiURL)) {
-      throw new Error('API failed to start');
-    }
-  },
+  globalSetup: './src/global-setup.ts',
   projects: [
     {
       name: 'chromium',

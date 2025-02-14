@@ -18,11 +18,16 @@
       "@training-insights/data-access": [
         "libs/shared/data-access/src/index.ts"
       ],
+      "@training-insights/file-storage": [
+        "libs/shared/file-storage/src/index.ts"
+      ],
+      "@training-insights/shared": ["libs/shared/src/index.ts"],
       "@training-insights/shared/test-utils": [
         "libs/shared/test-utils/src/index.ts"
       ],
       "@training-insights/test-utils": ["libs/shared/test-utils/src/index.ts"],
-      "@training-insights/trpc": ["libs/shared/trpc/src/index.ts"]
+      "@training-insights/trpc": ["libs/shared/trpc/src/index.ts"],
+      "@training-insights/ui": ["libs/shared/ui/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
