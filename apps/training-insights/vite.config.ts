@@ -38,5 +38,6 @@ export default defineConfig({
       reportsDirectory: '../../coverage/apps/training-insights',
       provider: 'v8',
     },
+    setupFiles: ['./src/test-setup.ts'],
   },
 });

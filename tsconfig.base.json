@@ -14,7 +14,12 @@
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
-    "paths": {}
+    "paths": {
+      "@training-insights/test-utils": ["libs/shared/test-utils/src/index.ts"],
+      "@training-insights/shared/test-utils": [
+        "libs/shared/test-utils/src/index.ts"
+      ]
+    }
   },
   "exclude": ["node_modules", "tmp"]
 }

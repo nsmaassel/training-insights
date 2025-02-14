@@ -1,8 +1,8 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
-test('has title', async ({ page }) => {
+test('homepage has title', async ({ page }) => {
   await page.goto('/');
 
-  // Expect h1 to contain a substring.
-  expect(await page.locator('h1').innerText()).toContain('Welcome');
+  // Expect h1 to contain app name
+  expect(await page.locator('h1').innerText()).toContain('Training Insights');
 });
